@@ -17,6 +17,14 @@ function handleIncomingMessage(fromId, message) {
   console.log(`[${myNodeId}] Message from ${fromId}: ${message}`);
 }
 
+let broadcast;
+
 setTimeout(() => {
-  connectToPeers(myNodeId, handleIncomingMessage);
+  const result = connectToPeers(myNodeId, handleIncomingMessage);
+  broadcast = result.broadcast;
+
+  setTimeout(() => {
+    console.log(`[${myNodeId}] Broadcasting a test message to all peers...`);
+    broadcast(`Hello everyone, this is ${myNodeId}`);
+  }, 2000);
 }, 1000);
