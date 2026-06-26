@@ -11,11 +11,11 @@ if (!myInfo) {
   process.exit(1);
 }
 
-startServer(myInfo.port, myNodeId);
-
 function handleIncomingMessage(fromId, message) {
   console.log(`[${myNodeId}] Message from ${fromId}: ${message}`);
 }
+
+startServer(myInfo.port, myNodeId, handleIncomingMessage);
 
 let broadcast;
 

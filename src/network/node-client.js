@@ -11,6 +11,7 @@ function connectToPeers(myNodeId, onMessage) {
 
     socket.on('open', () => {
       console.log(`[${myNodeId}] Connected to ${peer.id}`);
+      socket.send(JSON.stringify({ type: 'identify', nodeId: myNodeId }));
     });
 
     socket.on('message', (data) => {
@@ -25,12 +26,7 @@ function connectToPeers(myNodeId, onMessage) {
   }
 
   function broadcast(message) {
-    let payload;
-    if (typeof message === 'string') {
-        payload = message;
-    } else {
-        payload = JSON.stringify(message);
-    }
+    const payload = typeof message === 'string' ? message : JSON.stringify(message);
 
     for (const peerId in connections) {
       const socket = connections[peerId];
