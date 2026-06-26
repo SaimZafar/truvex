@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 const VALIDATORS = [
   { id: 'HEC', port: 5001 },
   { id: 'NUST', port: 5002 },
@@ -7,6 +10,13 @@ const VALIDATORS = [
   { id: 'LUMS', port: 5006 },
   { id: 'PU', port: 5007 }
 ];
+
+const keysDir = path.join(__dirname, '..', '..', 'keys');
+
+for (const validator of VALIDATORS) {
+  const publicKeyPath = path.join(keysDir, `${validator.id}.public.pem`);
+  validator.publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8');
+}
 
 const TOTAL_VALIDATORS = VALIDATORS.length;
 const FAULTY_TOLERANCE = Math.floor((TOTAL_VALIDATORS - 1) / 3);

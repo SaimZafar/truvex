@@ -1,15 +1,26 @@
 const crypto = require('crypto');
+const fs = require('fs');
 
 class ValidatorIdentity {
-  constructor(nodeId) {
+  constructor(nodeId, existingKeys) {
     this.nodeId = nodeId;
 
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
-      namedCurve: 'secp256k1'
-    });
+    if (existingKeys) {
+      this.publicKey = crypto.createPublicKey(existingKeys.publicPem);
+      this.privateKey = crypto.createPrivateKey(existingKeys.privatePem);
+    } else {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
+        namedCurve: 'secp256k1'
+      });
+      this.publicKey = publicKey;
+      this.privateKey = privateKey;
+    }
+  }
 
-    this.publicKey = publicKey;
-    this.privateKey = privateKey;
+  static loadFromFiles(nodeId, privateKeyPath, publicKeyPath) {
+    const privatePem = fs.readFileSync(privateKeyPath, 'utf8');
+    const publicPem = fs.readFileSync(publicKeyPath, 'utf8');
+    return new ValidatorIdentity(nodeId, { privatePem, publicPem });
   }
 
   getPublicKeyPem() {
@@ -17,12 +28,7 @@ class ValidatorIdentity {
   }
 
   sign(data) {
-    let message;
-    if (typeof data === 'string') {
-       message = data;
-    } else {
-       message = JSON.stringify(data);
-    }
+    const message = typeof data === 'string' ? data : JSON.stringify(data);
     const signer = crypto.createSign('SHA256');
     signer.update(message);
     signer.end();
@@ -30,12 +36,7 @@ class ValidatorIdentity {
   }
 
   static verify(data, signatureHex, publicKeyPem) {
-    let message;
-    if (typeof data === 'string') {
-       message = data;
-    } else {
-       message = JSON.stringify(data);
-    }
+    const message = typeof data === 'string' ? data : JSON.stringify(data);
     const verifier = crypto.createVerify('SHA256');
     verifier.update(message);
     verifier.end();
