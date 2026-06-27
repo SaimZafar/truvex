@@ -5,7 +5,8 @@ const { VALIDATORS } = require('./src/network/validator-registry');
 const ValidatorIdentity = require('./src/identity/node');
 const { createSignedMessage, verifySignedMessage } = require('./src/consensus/message');
 const { isLeader } = require('./src/consensus/state');
-const { addPrepare, getPrepareCount, hasReachedQuorum } = require('./src/consensus/prepare-pool');
+const { addPrepare, getPrepareCount, hasReachedQuorum: prepareQuorumReached } = require('./src/consensus/prepare-pool');
+const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFinalized, markFinalized } = require('./src/consensus/commit-pool');
 const WebSocket = require('ws');
 
 const myNodeId = process.argv[2];
@@ -24,6 +25,8 @@ const myIdentity = ValidatorIdentity.loadFromFiles(
 );
 
 let broadcastToEveryone;
+let myPreparedAlready = {};
+let myCommittedAlready = {};
 
 function handleIncomingMessage(fromId, rawMessage) {
   let signedMsg;
@@ -57,6 +60,7 @@ function handleIncomingMessage(fromId, rawMessage) {
     broadcastToEveryone(prepareMsg);
 
     addPrepare(payload.block, myNodeId);
+    myPreparedAlready[payload.block] = true;
   }
 
   if (type === 'prepare') {
@@ -64,8 +68,25 @@ function handleIncomingMessage(fromId, rawMessage) {
     const count = getPrepareCount(payload.block);
     console.log(`[${myNodeId}] Prepare count for block ${payload.block}: ${count}`);
 
-    if (hasReachedQuorum(payload.block)) {
-      console.log(`[${myNodeId}] QUORUM REACHED for block ${payload.block} prepares!`);
+    if (prepareQuorumReached(payload.block) && myPreparedAlready[payload.block] && !myCommittedAlready[payload.block]) {
+      console.log(`[${myNodeId}] PREPARE quorum reached for block ${payload.block}. Broadcasting COMMIT.`);
+
+      const commitMsg = createSignedMessage('commit', { block: payload.block }, myIdentity);
+      broadcastToEveryone(commitMsg);
+
+      addCommit(payload.block, myNodeId);
+      myCommittedAlready[payload.block] = true;
+    }
+  }
+
+  if (type === 'commit') {
+    addCommit(payload.block, senderId);
+    const count = getCommitCount(payload.block);
+    console.log(`[${myNodeId}] Commit count for block ${payload.block}: ${count}`);
+
+    if (commitQuorumReached(payload.block) && !isFinalized(payload.block)) {
+      markFinalized(payload.block);
+      console.log(`[${myNodeId}] *** BLOCK ${payload.block} FINALIZED *** (commit quorum reached)`);
     }
   }
 }
@@ -95,8 +116,15 @@ setTimeout(() => {
       console.log(`[${myNodeId}] I am the leader. Proposing block 1...`);
       const prePrepareMsg = createSignedMessage('pre-prepare', { block: 1, credential: 'BSIT degree for Ali Raza' }, myIdentity);
       broadcastToEveryone(prePrepareMsg);
+
+      const ownPrepareMsg = createSignedMessage('prepare', { block: 1 }, myIdentity);
+      broadcastToEveryone(ownPrepareMsg);
+
+      addPrepare(1, myNodeId);
+      myPreparedAlready[1] = true;
+      console.log(`[${myNodeId}] Broadcast own prepare vote for block 1`);
     } else {
       console.log(`[${myNodeId}] Waiting for pre-prepare from leader...`);
     }
-  }, 8000);
+  }, 15000);
 }, 1000);
