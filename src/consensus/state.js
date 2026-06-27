@@ -1,10 +1,20 @@
+const { VALIDATORS } = require('../network/validator-registry');
+
 const state = {
-  currentLeader: 'HEC',
-  sequenceNumber: 0
+  viewNumber: 0
 };
 
-function isLeader(nodeId) {
-  return nodeId === state.currentLeader;
+function getCurrentLeader() {
+  const leaderIndex = state.viewNumber % VALIDATORS.length;
+  return VALIDATORS[leaderIndex].id;
 }
 
-module.exports = { state, isLeader };
+function isLeader(nodeId) {
+  return nodeId === getCurrentLeader();
+}
+
+function advanceView() {
+  state.viewNumber = state.viewNumber + 1;
+}
+
+module.exports = { state, getCurrentLeader, isLeader, advanceView };

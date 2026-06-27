@@ -4,9 +4,10 @@ const connectToPeers = require('./src/network/node-client');
 const { VALIDATORS } = require('./src/network/validator-registry');
 const ValidatorIdentity = require('./src/identity/node');
 const { createSignedMessage, verifySignedMessage } = require('./src/consensus/message');
-const { isLeader } = require('./src/consensus/state');
+const { state, getCurrentLeader, isLeader, advanceView } = require('./src/consensus/state');
 const { addPrepare, getPrepareCount, hasReachedQuorum: prepareQuorumReached } = require('./src/consensus/prepare-pool');
 const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFinalized, markFinalized } = require('./src/consensus/commit-pool');
+const { addViewChangeVote, getViewChangeCount, hasReachedQuorum: viewChangeQuorumReached } = require('./src/consensus/view-change-pool');
 const WebSocket = require('ws');
 
 const myNodeId = process.argv[2];
@@ -27,6 +28,72 @@ const myIdentity = ValidatorIdentity.loadFromFiles(
 let broadcastToEveryone;
 let myPreparedAlready = {};
 let myCommittedAlready = {};
+let myViewChangeVoteSent = {};
+let leaderTimeoutHandle = null;
+let advancedToView = {};
+let prePrepareReceivedForView = {};
+
+const LEADER_TIMEOUT_MS = 10000;
+
+function startLeaderTimeout() {
+  if (prePrepareReceivedForView[state.viewNumber]) {
+    console.log(`[${myNodeId}] Pre-prepare already received for view ${state.viewNumber}, skipping timeout.`);
+    return;
+  }
+  clearLeaderTimeout();
+  leaderTimeoutHandle = setTimeout(() => {
+    if (prePrepareReceivedForView[state.viewNumber]) {
+      return;
+    }
+    const targetView = state.viewNumber + 1;
+    if (!myViewChangeVoteSent[targetView]) {
+      console.log(`[${myNodeId}] Leader timeout! Broadcasting VIEW-CHANGE vote for view ${targetView}`);
+      const viewChangeMsg = createSignedMessage('view-change', { targetView }, myIdentity);
+      broadcastToEveryone(viewChangeMsg);
+      addViewChangeVote(targetView, myNodeId);
+      myViewChangeVoteSent[targetView] = true;
+      checkViewChangeQuorum(targetView);
+    }
+  }, LEADER_TIMEOUT_MS);
+}
+
+function clearLeaderTimeout() {
+  if (leaderTimeoutHandle) {
+    clearTimeout(leaderTimeoutHandle);
+    leaderTimeoutHandle = null;
+  }
+}
+
+function proposeBlock(blockNumber) {
+  console.log(`[${myNodeId}] I am the leader. Proposing block ${blockNumber}...`);
+  const prePrepareMsg = createSignedMessage('pre-prepare', { block: blockNumber, credential: 'BSIT degree for Ali Raza' }, myIdentity);
+  broadcastToEveryone(prePrepareMsg);
+
+  const ownPrepareMsg = createSignedMessage('prepare', { block: blockNumber }, myIdentity);
+  broadcastToEveryone(ownPrepareMsg);
+
+  addPrepare(blockNumber, myNodeId);
+  myPreparedAlready[blockNumber] = true;
+  prePrepareReceivedForView[state.viewNumber] = true;
+  console.log(`[${myNodeId}] Broadcast own prepare vote for block ${blockNumber}`);
+}
+
+function checkViewChangeQuorum(targetView) {
+  if (viewChangeQuorumReached(targetView) && !advancedToView[targetView]) {
+    advancedToView[targetView] = true;
+    while (state.viewNumber < targetView) {
+      advanceView();
+    }
+    console.log(`[${myNodeId}] VIEW CHANGE QUORUM REACHED. Now in view ${state.viewNumber}, new leader is ${getCurrentLeader()}`);
+
+    if (isLeader(myNodeId)) {
+      console.log(`[${myNodeId}] I am the new leader for view ${state.viewNumber}.`);
+      proposeBlock(1);
+    } else {
+      startLeaderTimeout();
+    }
+  }
+}
 
 function handleIncomingMessage(fromId, rawMessage) {
   let signedMsg;
@@ -35,7 +102,7 @@ function handleIncomingMessage(fromId, rawMessage) {
   } catch (err) {
     console.log(`[${myNodeId}] Could not parse message from ${fromId}`);
     return;
-  }
+  } 
 
   const senderInfo = VALIDATORS.find(v => v.id === signedMsg.content.senderId);
   if (!senderInfo) {
@@ -53,6 +120,8 @@ function handleIncomingMessage(fromId, rawMessage) {
   const { type, payload, senderId } = signedMsg.content;
 
   if (type === 'pre-prepare') {
+    prePrepareReceivedForView[state.viewNumber] = true;
+    clearLeaderTimeout();
     console.log(`[${myNodeId}] Received PRE-PREPARE from ${senderId}: ${JSON.stringify(payload)}`);
 
     const prepareMsg = createSignedMessage('prepare', { block: payload.block }, myIdentity);
@@ -89,6 +158,13 @@ function handleIncomingMessage(fromId, rawMessage) {
       console.log(`[${myNodeId}] *** BLOCK ${payload.block} FINALIZED *** (commit quorum reached)`);
     }
   }
+
+  if (type === 'view-change') {
+    addViewChangeVote(payload.targetView, senderId);
+    const count = getViewChangeCount(payload.targetView);
+    console.log(`[${myNodeId}] View-change vote count for view ${payload.targetView}: ${count}`);
+    checkViewChangeQuorum(payload.targetView);
+  }
 }
 
 const { incomingConnections } = startServer(myInfo.port, myNodeId, handleIncomingMessage);
@@ -113,18 +189,10 @@ setTimeout(() => {
 
   setTimeout(() => {
     if (isLeader(myNodeId)) {
-      console.log(`[${myNodeId}] I am the leader. Proposing block 1...`);
-      const prePrepareMsg = createSignedMessage('pre-prepare', { block: 1, credential: 'BSIT degree for Ali Raza' }, myIdentity);
-      broadcastToEveryone(prePrepareMsg);
-
-      const ownPrepareMsg = createSignedMessage('prepare', { block: 1 }, myIdentity);
-      broadcastToEveryone(ownPrepareMsg);
-
-      addPrepare(1, myNodeId);
-      myPreparedAlready[1] = true;
-      console.log(`[${myNodeId}] Broadcast own prepare vote for block 1`);
+      proposeBlock(1);
     } else {
-      console.log(`[${myNodeId}] Waiting for pre-prepare from leader...`);
+      console.log(`[${myNodeId}] Waiting for pre-prepare from leader (${getCurrentLeader()})...`);
+      startLeaderTimeout();
     }
   }, 15000);
 }, 1000);
