@@ -5,6 +5,7 @@ const { VALIDATORS } = require('./src/network/validator-registry');
 const ValidatorIdentity = require('./src/identity/node');
 const { createSignedMessage, verifySignedMessage } = require('./src/consensus/message');
 const { isLeader } = require('./src/consensus/state');
+const { addPrepare, getPrepareCount, hasReachedQuorum } = require('./src/consensus/prepare-pool');
 const WebSocket = require('ws');
 
 const myNodeId = process.argv[2];
@@ -21,6 +22,8 @@ const myIdentity = ValidatorIdentity.loadFromFiles(
   path.join(__dirname, 'keys', `${myNodeId}.private.pem`),
   path.join(__dirname, 'keys', `${myNodeId}.public.pem`)
 );
+
+let broadcastToEveryone;
 
 function handleIncomingMessage(fromId, rawMessage) {
   let signedMsg;
@@ -44,10 +47,26 @@ function handleIncomingMessage(fromId, rawMessage) {
     return;
   }
 
-  if (signedMsg.content.type === 'pre-prepare') {
-    console.log(`[${myNodeId}] Received PRE-PREPARE from ${signedMsg.content.senderId}: ${JSON.stringify(signedMsg.content.payload)}`);
-  } else {
-    console.log(`[${myNodeId}] Verified message from ${signedMsg.content.senderId}: type=${signedMsg.content.type}`);
+  const { type, payload, senderId } = signedMsg.content;
+
+  if (type === 'pre-prepare') {
+    console.log(`[${myNodeId}] Received PRE-PREPARE from ${senderId}: ${JSON.stringify(payload)}`);
+
+    const prepareMsg = createSignedMessage('prepare', { block: payload.block }, myIdentity);
+    console.log(`[${myNodeId}] Broadcasting PREPARE for block ${payload.block}`);
+    broadcastToEveryone(prepareMsg);
+
+    addPrepare(payload.block, myNodeId);
+  }
+
+  if (type === 'prepare') {
+    addPrepare(payload.block, senderId);
+    const count = getPrepareCount(payload.block);
+    console.log(`[${myNodeId}] Prepare count for block ${payload.block}: ${count}`);
+
+    if (hasReachedQuorum(payload.block)) {
+      console.log(`[${myNodeId}] QUORUM REACHED for block ${payload.block} prepares!`);
+    }
   }
 }
 
@@ -55,9 +74,8 @@ const { incomingConnections } = startServer(myInfo.port, myNodeId, handleIncomin
 
 let outgoingConnections = {};
 
-function broadcastToEveryone(message) {
+broadcastToEveryone = function (message) {
   const payload = typeof message === 'string' ? message : JSON.stringify(message);
-
   const allSockets = { ...outgoingConnections, ...incomingConnections };
 
   for (const peerId in allSockets) {
@@ -66,7 +84,7 @@ function broadcastToEveryone(message) {
       socket.send(payload);
     }
   }
-}
+};
 
 setTimeout(() => {
   const result = connectToPeers(myNodeId, handleIncomingMessage);
