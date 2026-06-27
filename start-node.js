@@ -8,6 +8,8 @@ const { state, getCurrentLeader, isLeader, advanceView } = require('./src/consen
 const { addPrepare, getPrepareCount, hasReachedQuorum: prepareQuorumReached } = require('./src/consensus/prepare-pool');
 const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFinalized, markFinalized } = require('./src/consensus/commit-pool');
 const { addViewChangeVote, getViewChangeCount, hasReachedQuorum: viewChangeQuorumReached } = require('./src/consensus/view-change-pool');
+const { isValidCredentialPayload } = require('./src/credentials/schema');
+const { recordIssuedCredential, recordRevokedCredential } = require('./src/ledger/ledger');
 const WebSocket = require('ws');
 
 const myNodeId = process.argv[2];
@@ -32,6 +34,7 @@ let myViewChangeVoteSent = {};
 let leaderTimeoutHandle = null;
 let advancedToView = {};
 let prePrepareReceivedForView = {};
+let blockPayloads = {};
 
 const LEADER_TIMEOUT_MS = 10000;
 
@@ -64,10 +67,12 @@ function clearLeaderTimeout() {
   }
 }
 
-function proposeBlock(blockNumber) {
-  console.log(`[${myNodeId}] I am the leader. Proposing block ${blockNumber}...`);
-  const prePrepareMsg = createSignedMessage('pre-prepare', { block: blockNumber, credential: 'BSIT degree for Ali Raza' }, myIdentity);
+function proposeBlock(blockNumber, credentialPayload) {
+  console.log(`[${myNodeId}] I am the leader. Proposing block ${blockNumber}: ${credentialPayload.action} ${credentialPayload.credentialId}`);
+  const prePrepareMsg = createSignedMessage('pre-prepare', { block: blockNumber, ...credentialPayload }, myIdentity);
   broadcastToEveryone(prePrepareMsg);
+
+  blockPayloads[blockNumber] = credentialPayload;
 
   const ownPrepareMsg = createSignedMessage('prepare', { block: blockNumber }, myIdentity);
   broadcastToEveryone(ownPrepareMsg);
@@ -88,7 +93,8 @@ function checkViewChangeQuorum(targetView) {
 
     if (isLeader(myNodeId)) {
       console.log(`[${myNodeId}] I am the new leader for view ${state.viewNumber}.`);
-      proposeBlock(1);
+      const fallbackPayload = { action: 'issue', studentName: 'Pending Student', degree: 'BSIT', cgpa: 3.0, issuingInstitution: myNodeId, credentialId: `CRED-VIEW${state.viewNumber}` };
+      proposeBlock(1, fallbackPayload);
     } else {
       startLeaderTimeout();
     }
@@ -102,7 +108,7 @@ function handleIncomingMessage(fromId, rawMessage) {
   } catch (err) {
     console.log(`[${myNodeId}] Could not parse message from ${fromId}`);
     return;
-  } 
+  }
 
   const senderInfo = VALIDATORS.find(v => v.id === signedMsg.content.senderId);
   if (!senderInfo) {
@@ -120,9 +126,16 @@ function handleIncomingMessage(fromId, rawMessage) {
   const { type, payload, senderId } = signedMsg.content;
 
   if (type === 'pre-prepare') {
+    if (!isValidCredentialPayload(payload)) {
+      console.log(`[${myNodeId}] REJECTED invalid credential payload in pre-prepare for block ${payload.block}`);
+      return;
+    }
+
     prePrepareReceivedForView[state.viewNumber] = true;
     clearLeaderTimeout();
-    console.log(`[${myNodeId}] Received PRE-PREPARE from ${senderId}: ${JSON.stringify(payload)}`);
+    console.log(`[${myNodeId}] Received PRE-PREPARE from ${senderId}: ${payload.action} ${payload.credentialId}`);
+
+    blockPayloads[payload.block] = payload;
 
     const prepareMsg = createSignedMessage('prepare', { block: payload.block }, myIdentity);
     console.log(`[${myNodeId}] Broadcasting PREPARE for block ${payload.block}`);
@@ -155,7 +168,15 @@ function handleIncomingMessage(fromId, rawMessage) {
 
     if (commitQuorumReached(payload.block) && !isFinalized(payload.block)) {
       markFinalized(payload.block);
-      console.log(`[${myNodeId}] *** BLOCK ${payload.block} FINALIZED *** (commit quorum reached)`);
+
+      const finalizedPayload = blockPayloads[payload.block];
+      if (finalizedPayload.action === 'issue') {
+        recordIssuedCredential(finalizedPayload, payload.block);
+        console.log(`[${myNodeId}] *** BLOCK ${payload.block} FINALIZED *** ISSUED ${finalizedPayload.credentialId} for ${finalizedPayload.studentName}`);
+      } else if (finalizedPayload.action === 'revoke') {
+        recordRevokedCredential(finalizedPayload, payload.block);
+        console.log(`[${myNodeId}] *** BLOCK ${payload.block} FINALIZED *** REVOKED ${finalizedPayload.credentialId}: ${finalizedPayload.reason}`);
+      }
     }
   }
 
@@ -189,7 +210,15 @@ setTimeout(() => {
 
   setTimeout(() => {
     if (isLeader(myNodeId)) {
-      proposeBlock(1);
+      const initialPayload = {
+        action: 'issue',
+        studentName: 'Ali Raza',
+        degree: 'BSIT',
+        cgpa: 3.7,
+        issuingInstitution: myNodeId,
+        credentialId: 'CRED-001'
+      };
+      proposeBlock(1, initialPayload);
     } else {
       console.log(`[${myNodeId}] Waiting for pre-prepare from leader (${getCurrentLeader()})...`);
       startLeaderTimeout();
