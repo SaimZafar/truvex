@@ -1,0 +1,121 @@
+version: '3.9'
+
+services:
+  hec:
+    build: .
+    command: HEC
+    ports:
+      - "5001:5001"
+      - "6001:6001"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  nust:
+    build: .
+    command: NUST
+    ports:
+      - "5002:5002"
+      - "6002:6002"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  bahria:
+    build: .
+    command: Bahria
+    ports:
+      - "5003:5003"
+      - "6003:6003"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  fast:
+    build: .
+    command: FAST
+    ports:
+      - "5004:5004"
+      - "6004:6004"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  comsats:
+    build: .
+    command: COMSATS
+    ports:
+      - "5005:5005"
+      - "6005:6005"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  lums:
+    build: .
+    command: LUMS
+    ports:
+      - "5006:5006"
+      - "6006:6006"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
+
+  pu:
+    build: .
+    command: PU
+    ports:
+      - "5007:5007"
+      - "6007:6007"
+    environment:
+      - HEC_HOST=hec
+      - NUST_HOST=nust
+      - BAHRIA_HOST=bahria
+      - FAST_HOST=fast
+      - COMSATS_HOST=comsats
+      - LUMS_HOST=lums
+      - PU_HOST=pu
+    volumes:
+      - ./keys:/app/keys:ro
