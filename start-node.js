@@ -4,6 +4,8 @@ const connectToPeers = require('./src/network/node-client');
 const { VALIDATORS } = require('./src/network/validator-registry');
 const ValidatorIdentity = require('./src/identity/node');
 const { createSignedMessage, verifySignedMessage } = require('./src/consensus/message');
+const { isLeader } = require('./src/consensus/state');
+const WebSocket = require('ws');
 
 const myNodeId = process.argv[2];
 
@@ -42,20 +44,41 @@ function handleIncomingMessage(fromId, rawMessage) {
     return;
   }
 
-  console.log(`[${myNodeId}] Verified message from ${signedMsg.content.senderId}: type=${signedMsg.content.type}, payload=${JSON.stringify(signedMsg.content.payload)}`);
+  if (signedMsg.content.type === 'pre-prepare') {
+    console.log(`[${myNodeId}] Received PRE-PREPARE from ${signedMsg.content.senderId}: ${JSON.stringify(signedMsg.content.payload)}`);
+  } else {
+    console.log(`[${myNodeId}] Verified message from ${signedMsg.content.senderId}: type=${signedMsg.content.type}`);
+  }
 }
 
-startServer(myInfo.port, myNodeId, handleIncomingMessage);
+const { incomingConnections } = startServer(myInfo.port, myNodeId, handleIncomingMessage);
 
-let broadcast;
+let outgoingConnections = {};
+
+function broadcastToEveryone(message) {
+  const payload = typeof message === 'string' ? message : JSON.stringify(message);
+
+  const allSockets = { ...outgoingConnections, ...incomingConnections };
+
+  for (const peerId in allSockets) {
+    const socket = allSockets[peerId];
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(payload);
+    }
+  }
+}
 
 setTimeout(() => {
   const result = connectToPeers(myNodeId, handleIncomingMessage);
-  broadcast = result.broadcast;
+  outgoingConnections = result.connections;
 
   setTimeout(() => {
-    console.log(`[${myNodeId}] Broadcasting a signed test message...`);
-    const signedMsg = createSignedMessage('pre-prepare', { block: 1, note: `Hello from ${myNodeId}` }, myIdentity);
-    broadcast(signedMsg);
-  }, 2000);
+    if (isLeader(myNodeId)) {
+      console.log(`[${myNodeId}] I am the leader. Proposing block 1...`);
+      const prePrepareMsg = createSignedMessage('pre-prepare', { block: 1, credential: 'BSIT degree for Ali Raza' }, myIdentity);
+      broadcastToEveryone(prePrepareMsg);
+    } else {
+      console.log(`[${myNodeId}] Waiting for pre-prepare from leader...`);
+    }
+  }, 8000);
 }, 1000);
