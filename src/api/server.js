@@ -44,6 +44,13 @@ function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, propo
     if (!credentialId || !reason) {
       return res.status(400).json({ error: 'Missing credentialId or reason.' });
     }
+    const existing = getCredentialFn(credentialId);
+    if (!existing) {
+      return res.status(404).json({ error: `Credential ${credentialId} not found.` });
+    }
+    if (existing.status === 'revoked') {
+      return res.status(409).json({ error: `Credential ${credentialId} is already revoked.` });
+    }
     const payload = { action: 'revoke', credentialId, reason };
     const blockNumber = getNextBlockNumber();
     proposeBlockFn(blockNumber, payload);
