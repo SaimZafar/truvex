@@ -10,7 +10,16 @@ const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFina
 const { addViewChangeVote, getViewChangeCount, hasReachedQuorum: viewChangeQuorumReached } = require('./src/consensus/view-change-pool');
 const { isValidCredentialPayload } = require('./src/credentials/schema');
 const { recordIssuedCredential, recordRevokedCredential } = require('./src/ledger/ledger');
+const startApiServer = require('./src/api/server');
 const WebSocket = require('ws');
+
+const API_PORT_OFFSET = 1000;
+let highestBlockNumber = 0;
+
+function getNextBlockNumber() {
+  highestBlockNumber = highestBlockNumber + 1;
+  return highestBlockNumber;
+}
 
 const myNodeId = process.argv[2];
 
@@ -68,6 +77,10 @@ function clearLeaderTimeout() {
 }
 
 function proposeBlock(blockNumber, credentialPayload) {
+  if (blockNumber > highestBlockNumber) {
+    highestBlockNumber = blockNumber;
+  }
+
   console.log(`[${myNodeId}] I am the leader. Proposing block ${blockNumber}: ${credentialPayload.action} ${credentialPayload.credentialId}`);
   const prePrepareMsg = createSignedMessage('pre-prepare', { block: blockNumber, ...credentialPayload }, myIdentity);
   broadcastToEveryone(prePrepareMsg);
@@ -93,8 +106,6 @@ function checkViewChangeQuorum(targetView) {
 
     if (isLeader(myNodeId)) {
       console.log(`[${myNodeId}] I am the new leader for view ${state.viewNumber}.`);
-      const fallbackPayload = { action: 'issue', studentName: 'Pending Student', degree: 'BSIT', cgpa: 3.0, issuingInstitution: myNodeId, credentialId: `CRED-VIEW${state.viewNumber}` };
-      proposeBlock(1, fallbackPayload);
     } else {
       startLeaderTimeout();
     }
@@ -129,6 +140,10 @@ function handleIncomingMessage(fromId, rawMessage) {
     if (!isValidCredentialPayload(payload)) {
       console.log(`[${myNodeId}] REJECTED invalid credential payload in pre-prepare for block ${payload.block}`);
       return;
+    }
+
+    if (payload.block > highestBlockNumber) {
+      highestBlockNumber = payload.block;
     }
 
     prePrepareReceivedForView[state.viewNumber] = true;
@@ -204,24 +219,17 @@ broadcastToEveryone = function (message) {
   }
 };
 
+startApiServer(myInfo.port + API_PORT_OFFSET, myNodeId, getNextBlockNumber, isLeader, proposeBlock);
+
 setTimeout(() => {
   const result = connectToPeers(myNodeId, handleIncomingMessage);
   outgoingConnections = result.connections;
 
   setTimeout(() => {
     if (isLeader(myNodeId)) {
-      const initialPayload = {
-        action: 'issue',
-        studentName: 'Ali Raza',
-        degree: 'BSIT',
-        cgpa: 3.7,
-        issuingInstitution: myNodeId,
-        credentialId: 'CRED-001'
-      };
-      proposeBlock(1, initialPayload);
+      console.log(`[${myNodeId}] I am the leader, waiting for an issue-credential request via the API.`);
     } else {
-      console.log(`[${myNodeId}] Waiting for pre-prepare from leader (${getCurrentLeader()})...`);
-      startLeaderTimeout();
+      console.log(`[${myNodeId}] Connected. Leader is ${getCurrentLeader()}. Waiting for network activity before watching for timeouts.`);
     }
   }, 15000);
 }, 1000);

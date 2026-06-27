@@ -8,7 +8,15 @@ function loadLedger() {
     return { credentials: {} };
   }
   const raw = fs.readFileSync(ledgerPath, 'utf8');
-  return JSON.parse(raw);
+  if (!raw || raw.trim() === '') {
+    return { credentials: {} };
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.log('Warning: ledger.json was corrupted or empty, starting fresh.');
+    return { credentials: {} };
+  }
 }
 
 function saveLedger(ledger) {
