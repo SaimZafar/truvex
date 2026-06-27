@@ -9,7 +9,7 @@ const { addPrepare, getPrepareCount, hasReachedQuorum: prepareQuorumReached } = 
 const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFinalized, markFinalized } = require('./src/consensus/commit-pool');
 const { addViewChangeVote, getViewChangeCount, hasReachedQuorum: viewChangeQuorumReached } = require('./src/consensus/view-change-pool');
 const { isValidCredentialPayload } = require('./src/credentials/schema');
-const { recordIssuedCredential, recordRevokedCredential } = require('./src/ledger/ledger');
+const { recordIssuedCredential, recordRevokedCredential, getCredential } = require('./src/ledger/ledger');
 const startApiServer = require('./src/api/server');
 const WebSocket = require('ws');
 
@@ -219,7 +219,7 @@ broadcastToEveryone = function (message) {
   }
 };
 
-startApiServer(myInfo.port + API_PORT_OFFSET, myNodeId, getNextBlockNumber, isLeader, proposeBlock);
+startApiServer(myInfo.port + API_PORT_OFFSET, myNodeId, getNextBlockNumber, isLeader, proposeBlock, getCredential);
 
 setTimeout(() => {
   const result = connectToPeers(myNodeId, handleIncomingMessage);

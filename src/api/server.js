@@ -1,6 +1,6 @@
 const express = require('express');
 
-function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, proposeBlockFn) {
+function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, proposeBlockFn, getCredentialFn) {
   const app = express();
   app.use(express.json());
 
@@ -29,7 +29,13 @@ function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, propo
 
     res.status(202).json({ message: 'Proposal broadcast to network, awaiting consensus.', blockNumber, payload });
   });
-
+  app.get('/verify-credential/:credentialId', (req, res) => {
+    const credential = getCredentialFn(req.params.credentialId);
+    if (!credential) {
+      return res.status(404).json({ error: 'Credential not found.' });
+    }
+    res.json({ credential });
+  });
   app.listen(apiPort, () => {
     console.log(`[${myNodeId}] API server listening on port ${apiPort}`);
   });
