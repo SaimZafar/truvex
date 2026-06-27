@@ -36,6 +36,19 @@ function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, propo
     }
     res.json({ credential });
   });
+  app.post('/revoke-credential', (req, res) => {
+    if (!isLeaderFn(myNodeId)) {
+      return res.status(409).json({ error: `${myNodeId} is not the current leader. Try the current leader's API.` });
+    }
+    const { credentialId, reason } = req.body;
+    if (!credentialId || !reason) {
+      return res.status(400).json({ error: 'Missing credentialId or reason.' });
+    }
+    const payload = { action: 'revoke', credentialId, reason };
+    const blockNumber = getNextBlockNumber();
+    proposeBlockFn(blockNumber, payload);
+    res.status(202).json({ message: 'Revocation proposed, awaiting consensus.', blockNumber, payload });
+  });
   app.listen(apiPort, () => {
     console.log(`[${myNodeId}] API server listening on port ${apiPort}`);
   });

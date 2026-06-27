@@ -1,9 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 
-const ledgerPath = path.join(__dirname, '..', '..', 'ledger.json');
+let nodeId = 'default';
+
+function setNodeId(id) {
+  nodeId = id;
+}
+
+function getLedgerPath() {
+  return path.join(__dirname, '..', '..', `ledger-${nodeId}.json`);
+}
 
 function loadLedger() {
+  const ledgerPath = getLedgerPath();
   if (!fs.existsSync(ledgerPath)) {
     return { credentials: {} };
   }
@@ -14,13 +23,13 @@ function loadLedger() {
   try {
     return JSON.parse(raw);
   } catch (err) {
-    console.log('Warning: ledger.json was corrupted or empty, starting fresh.');
+    console.log('Warning: ledger was corrupted or empty, starting fresh.');
     return { credentials: {} };
   }
 }
 
 function saveLedger(ledger) {
-  fs.writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
+  fs.writeFileSync(getLedgerPath(), JSON.stringify(ledger, null, 2));
 }
 
 function recordIssuedCredential(payload, blockNumber) {
@@ -52,4 +61,4 @@ function getCredential(credentialId) {
   return ledger.credentials[credentialId] || null;
 }
 
-module.exports = { recordIssuedCredential, recordRevokedCredential, getCredential, loadLedger };
+module.exports = { setNodeId, recordIssuedCredential, recordRevokedCredential, getCredential, loadLedger };

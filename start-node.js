@@ -9,7 +9,7 @@ const { addPrepare, getPrepareCount, hasReachedQuorum: prepareQuorumReached } = 
 const { addCommit, getCommitCount, hasReachedQuorum: commitQuorumReached, isFinalized, markFinalized } = require('./src/consensus/commit-pool');
 const { addViewChangeVote, getViewChangeCount, hasReachedQuorum: viewChangeQuorumReached } = require('./src/consensus/view-change-pool');
 const { isValidCredentialPayload } = require('./src/credentials/schema');
-const { recordIssuedCredential, recordRevokedCredential, getCredential } = require('./src/ledger/ledger');
+const { setNodeId, recordIssuedCredential, recordRevokedCredential, getCredential } = require('./src/ledger/ledger');
 const startApiServer = require('./src/api/server');
 const WebSocket = require('ws');
 
@@ -22,6 +22,7 @@ function getNextBlockNumber() {
 }
 
 const myNodeId = process.argv[2];
+setNodeId(myNodeId);
 
 const myInfo = VALIDATORS.find(v => v.id === myNodeId);
 
