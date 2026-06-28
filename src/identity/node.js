@@ -18,9 +18,15 @@ class ValidatorIdentity {
   }
 
   static loadFromFiles(nodeId, privateKeyPath, publicKeyPath) {
-    const privatePem = fs.readFileSync(privateKeyPath, 'utf8');
-    const publicPem = fs.readFileSync(publicKeyPath, 'utf8');
-    return new ValidatorIdentity(nodeId, { privatePem, publicPem });
+  const envVarName = `${nodeId.toUpperCase()}_PRIVATE_KEY`;
+  const privateKeyFromEnv = process.env[envVarName];
+
+  const privatePem = privateKeyFromEnv
+    ? privateKeyFromEnv.replace(/\\n/g, '\n')
+    : fs.readFileSync(privateKeyPath, 'utf8');
+
+  const publicPem = fs.readFileSync(publicKeyPath, 'utf8');
+  return new ValidatorIdentity(nodeId, { privatePem, publicPem });
   }
 
   getPublicKeyPem() {
