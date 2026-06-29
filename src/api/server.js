@@ -14,7 +14,10 @@ function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, propo
     if (!studentName || !degree || typeof cgpa !== 'number' || !credentialId) {
       return res.status(400).json({ error: 'Missing or invalid fields. Required: studentName, degree, cgpa (number), credentialId' });
     }
-
+    const existing = getCredentialFn(credentialId);
+    if (existing) {
+      return res.status(409).json({ error: `Credential ${credentialId} already exists.` });
+    }
     const payload = {
       action: 'issue',
       studentName,
