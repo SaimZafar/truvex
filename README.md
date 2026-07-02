@@ -1,19 +1,19 @@
 # Truvex
 
-![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)
-![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)
-![Consensus](https://img.shields.io/badge/Consensus-PBFT-6C4AB6)
-![License](https://img.shields.io/badge/license-ISC-blue)
+[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![Consensus](https://img.shields.io/badge/Consensus-PBFT-6C4AB6)](https://pmg.csail.mit.edu/papers/osdi99.pdf)
+[![License](https://img.shields.io/badge/license-ISC-blue)](https://opensource.org/license/isc-license-txt)
 
-A permissioned blockchain for academic credential verification, built from scratch around a real implementation of **PBFT (Practical Byzantine Fault Tolerance)** consensus — with a full-stack web application on top.
+A permissioned blockchain for academic credential verification, built from scratch around a real implementation of **PBFT (Practical Byzantine Fault Tolerance)** consensus - with a full-stack web application on top.
 
 Seven validators, modeled on HEC and major Pakistani universities, independently agree on which academic credentials are valid before any record is considered final. No single institution's database is the source of truth. If up to 2 of the 7 validators are compromised, lie, or go offline, the network still reaches correct, agreed-upon decisions.
 
-On top of the consensus engine sits a role-based web app: universities and HEC **issue** credentials, HEC **revokes** fraudulent ones, and employers **verify** any credential against the network — all through authenticated dashboards.
+On top of the consensus engine sits a role-based web app: universities and HEC **issue** credentials, HEC **revokes** fraudulent ones, and employers **verify** any credential against the network - all through authenticated dashboards.
 
 ---
 
@@ -47,7 +47,7 @@ Truvex models a network where a small set of trusted institutions jointly sign o
 
 ## Why PBFT, not Proof of Work
 
-This is a **permissioned** network: validators are a known, fixed set of institutions, not anonymous miners. That is exactly the use case PBFT was designed for — fast, deterministic finality among a small group of mutually distrustful but identifiable parties, the same model used by systems like Hyperledger Fabric.
+This is a **permissioned** network: validators are a known, fixed set of institutions, not anonymous miners. That is exactly the use case PBFT was designed for - fast, deterministic finality among a small group of mutually distrustful but identifiable parties, the same model used by systems like Hyperledger Fabric.
 
 With **N = 7** validators, the network tolerates **f = 2** faulty or malicious validators (N ≥ 3f + 1), and requires a **quorum of 5** matching votes before any decision is trusted. Any two quorums of 5 out of 7 validators must overlap by at least 3, and since at most 2 can be dishonest, at least one validator in that overlap is guaranteed honest. That guarantee is what makes it mathematically impossible for the network to finalize two conflicting versions of the same block.
 
@@ -86,9 +86,9 @@ flowchart TD
     L -. "consensus" .- V4
 ```
 
-- **Frontend (`client/`)** — a React 19 + Vite + Tailwind app. Three role-based dashboards behind a login, styled with a serif/sans identity (Fraunces + Inter). The dev server proxies `/api` to the auth server.
-- **Auth server (`server/`)** — Express + MongoDB (via Mongoose) + JWT. Authenticates users, enforces role-based permissions, and acts as the gateway to the blockchain. It never exposes validator ports to the browser.
-- **Blockchain network (`src/`, `start-node.js`)** — seven independent validator processes running PBFT consensus over a WebSocket mesh, each with its own signing key and its own persisted ledger.
+- **Frontend (`client/`)** - a React 19 + Vite + Tailwind app. Three role-based dashboards behind a login, styled with a serif/sans identity (Fraunces + Inter). The dev server proxies `/api` to the auth server.
+- **Auth server (`server/`)** - Express + MongoDB (via Mongoose) + JWT. Authenticates users, enforces role-based permissions, and acts as the gateway to the blockchain. It never exposes validator ports to the browser.
+- **Blockchain network (`src/`, `start-node.js`)** - seven independent validator processes running PBFT consensus over a WebSocket mesh, each with its own signing key and its own persisted ledger.
 
 ## The validator set
 
@@ -125,16 +125,16 @@ sequenceDiagram
     Rep->>Rep: finalize block, write to ledger
 ```
 
-1. **Pre-prepare** — the current leader proposes a credential action, signs it, and broadcasts it.
-2. **Prepare** — every validator that receives and validates the proposal broadcasts a signed prepare vote. Each validator waits for **5 matching votes** before proceeding.
-3. **Commit** — once prepare quorum is reached, validators broadcast a signed commit vote. Once **5 matching commits** are reached, the block is finalized and written to that validator's ledger.
-4. **View change** — if the current leader does not propose within a timeout, validators vote to elect the next leader in rotation. Once 5 validators agree, the network moves to the new view (and new leader) automatically.
+1. **Pre-prepare** - the current leader proposes a credential action, signs it, and broadcasts it.
+2. **Prepare** - every validator that receives and validates the proposal broadcasts a signed prepare vote. Each validator waits for **5 matching votes** before proceeding.
+3. **Commit** - once prepare quorum is reached, validators broadcast a signed commit vote. Once **5 matching commits** are reached, the block is finalized and written to that validator's ledger.
+4. **View change** - if the current leader does not propose within a timeout, validators vote to elect the next leader in rotation. Once 5 validators agree, the network moves to the new view (and new leader) automatically.
 
 Every message is signed with the sender's private key and verified against the validator registry. A forged or tampered message is discarded immediately.
 
 ## Leader discovery
 
-Only the **current leader** accepts new proposals, and leadership rotates on view change. So the auth server does not assume a fixed leader — before every write it asks the network who the leader is:
+Only the **current leader** accepts new proposals, and leadership rotates on view change. So the auth server does not assume a fixed leader - before every write it asks the network who the leader is:
 
 1. Auth server calls `GET /leader` on a validator, which returns the current `leaderId` and its `leaderIndex` (1–7).
 2. Auth server forwards the `issue` / `revoke` request to that leader's API.
@@ -155,9 +155,9 @@ Seeded demo accounts (see `server/seed.js`), all with password `password123`:
 
 | Username | Role | Institution |
 |---|---|---|
-| `hec_admin` | hec | — |
+| `hec_admin` | hec | - |
 | `nust_admin` | university | NUST |
-| `acme_corp` | employer | — |
+| `acme_corp` | employer | - |
 
 ## Repository structure
 
@@ -217,7 +217,7 @@ Create `server/.env` (see [Configuration](#configuration)) before seeding or run
 
 ## Running the full stack
 
-**Option 1 — one command (Windows).** Launches the blockchain network, auth server, and frontend, each in its own window:
+**Option 1 - one command (Windows).** Launches the blockchain network, auth server, and frontend, each in its own window:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-all.ps1
@@ -225,7 +225,7 @@ powershell -ExecutionPolicy Bypass -File .\start-all.ps1
 
 Then open the Vite URL it prints (usually `http://localhost:5173`) and log in with a seeded account.
 
-**Option 2 — manually, in three terminals:**
+**Option 2 - manually, in three terminals:**
 
 ```bash
 # Terminal 1 - blockchain
@@ -238,7 +238,7 @@ cd server && node index.js
 cd client && npm run dev
 ```
 
-**Option 3 — blockchain via Docker.** Runs all 7 validators as isolated containers on Docker's internal network, closer to how independently operated institutional nodes would run:
+**Option 3 - blockchain via Docker.** Runs all 7 validators as isolated containers on Docker's internal network, closer to how independently operated institutional nodes would run:
 
 ```bash
 docker compose up --build
@@ -250,7 +250,7 @@ The auth server reads `server/.env` (git-ignored):
 
 | Variable | Description |
 |---|---|
-| `PORT` | Auth server port (the frontend proxies `/api` here — default `7000`) |
+| `PORT` | Auth server port (the frontend proxies `/api` here - default `7000`) |
 | `MONGO_URI` | Mongo connection string, e.g. `mongodb://localhost:27017/truvex` |
 | `JWT_SECRET` | Secret used to sign JWTs |
 | `BLOCKCHAIN_API_BASE` | Base URL for validator APIs, ending so that appending a node number `1`–`7` targets ports `6001`–`6007` (e.g. `http://localhost:600`) |
@@ -282,9 +282,9 @@ Validator hostnames can be overridden with `HEC_HOST`, `NUST_HOST`, etc. (used b
 
 ## Adversarial testing
 
-**`attacker.js` — signature forgery.** Connects to a live validator and sends a message claiming to be from HEC, signed with a different private key. The network rejects it on signature verification.
+**`attacker.js` - signature forgery.** Connects to a live validator and sends a message claiming to be from HEC, signed with a different private key. The network rejects it on signature verification.
 
-**`malicious-leader.js` — lying leader.** Uses HEC's real private key to send two different, both validly-signed proposals to different halves of the network. Because no group of 5 validators can agree on either conflicting version, prepare quorum is never reached. The network stalls rather than finalizing a lie.
+**`malicious-leader.js` - lying leader.** Uses HEC's real private key to send two different, both validly-signed proposals to different halves of the network. Because no group of 5 validators can agree on either conflicting version, prepare quorum is never reached. The network stalls rather than finalizing a lie.
 
 ## Threat model
 
@@ -298,9 +298,9 @@ Validator hostnames can be overridden with `HEC_HOST`, `NUST_HOST`, etc. (used b
 
 **Does not defend against:**
 
-- Collusion of 3 or more validators — beyond the 3f + 1 bound, the guarantee no longer holds. This is a known, accepted limit of PBFT at this validator count.
-- Private key compromise — an attacker with a validator's actual private key can sign as that validator. Key custody is outside this system's scope.
-- Real-world identity binding — the system assumes the registered public key for "NUST" genuinely belongs to NUST. Verifying that binding initially is an operational problem, not a cryptographic one.
+- Collusion of 3 or more validators - beyond the 3f + 1 bound, the guarantee no longer holds. This is a known, accepted limit of PBFT at this validator count.
+- Private key compromise - an attacker with a validator's actual private key can sign as that validator. Key custody is outside this system's scope.
+- Real-world identity binding - the system assumes the registered public key for "NUST" genuinely belongs to NUST. Verifying that binding initially is an operational problem, not a cryptographic one.
 
 ## Tech stack
 
