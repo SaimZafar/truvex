@@ -19,16 +19,18 @@ router.post('/issue', authMiddleware, requireRole('hec', 'university'), async (r
   try {
     const { studentName, degree, cgpa, credentialId } = req.body;
 
+    let issuingInstitution = 'HEC';
     if (req.user.role === 'university') {
       if (!req.user.institution) {
         return res.status(400).json({ error: 'No institution associated with this account.' });
       }
+      issuingInstitution = req.user.institution;
     }
 
     const response = await fetch(`${BLOCKCHAIN_BASE}1/issue-credential`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentName, degree, cgpa, credentialId })
+      body: JSON.stringify({ studentName, degree, cgpa, credentialId, issuingInstitution })
     });
 
     const data = await response.json();
@@ -52,7 +54,7 @@ router.get('/verify/:credentialId', authMiddleware, async (req, res) => {
       return res.status(response.status).json(data);
     }
 
-    res.json(data);
+    res.json(data.credential);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

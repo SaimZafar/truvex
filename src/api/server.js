@@ -9,23 +9,22 @@ function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, propo
       return res.status(409).json({ error: `${myNodeId} is not the current leader. Try the current leader's API.` });
     }
 
-    const { studentName, degree, cgpa, credentialId } = req.body;
-
-    if (!studentName || !degree || typeof cgpa !== 'number' || !credentialId) {
-      return res.status(400).json({ error: 'Missing or invalid fields. Required: studentName, degree, cgpa (number), credentialId' });
-    }
-    const existing = getCredentialFn(credentialId);
-    if (existing) {
-      return res.status(409).json({ error: `Credential ${credentialId} already exists.` });
-    }
-    const payload = {
-      action: 'issue',
-      studentName,
-      degree,
-      cgpa,
-      issuingInstitution: myNodeId,
-      credentialId
-    };
+    const { studentName, degree, cgpa, credentialId, issuingInstitution } = req.body;
+if (!studentName || !degree || typeof cgpa !== 'number' || !credentialId) {
+  return res.status(400).json({ error: 'Missing or invalid fields. Required: studentName, degree, cgpa (number), credentialId' });
+}
+const existing = getCredentialFn(credentialId);
+if (existing) {
+  return res.status(409).json({ error: `Credential ${credentialId} already exists.` });
+}
+const payload = {
+  action: 'issue',
+  studentName,
+  degree,
+  cgpa,
+  issuingInstitution: issuingInstitution || myNodeId,
+  credentialId
+};
 
     const blockNumber = getNextBlockNumber();
     proposeBlockFn(blockNumber, payload);
