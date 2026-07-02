@@ -1,6 +1,6 @@
 const express = require('express');
 
-function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, proposeBlockFn, getCredentialFn) {
+function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, proposeBlockFn, getCredentialFn, getAllCredentialsFn) {
   const app = express();
   app.use(express.json());
 
@@ -37,6 +37,9 @@ const payload = {
       return res.status(404).json({ error: 'Credential not found.' });
     }
     res.json({ credential });
+  });
+  app.get('/credentials', (req, res) => {
+    res.json({ credentials: getAllCredentialsFn() });
   });
   app.post('/revoke-credential', (req, res) => {
     if (!isLeaderFn(myNodeId)) {

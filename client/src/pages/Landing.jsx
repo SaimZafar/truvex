@@ -42,7 +42,7 @@ export default function Landing() {
         {/* Hero content */}
         <div className="relative z-10 w-full h-[calc(100%-88px)] flex flex-col items-center justify-center text-center px-6 pointer-events-none">
           <span className="pointer-events-auto mb-6 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 backdrop-blur-md">
-            Byzantine Fault Tolerant · PBFT Consensus
+            Byzantine Fault Tolerant - PBFT Consensus
           </span>
 
           <h1 className="text-6xl md:text-7xl font-bold tracking-tight drop-shadow-lg">

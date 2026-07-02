@@ -82,4 +82,17 @@ router.post('/revoke', authMiddleware, requireRole('hec'), async (req, res) => {
   }
 });
 
+router.get('/list', authMiddleware, async (req, res) => {
+  try {
+    const response = await fetch(`${BLOCKCHAIN_BASE}1/credentials`);
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+    res.json(data.credentials || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

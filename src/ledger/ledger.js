@@ -61,4 +61,9 @@ function getCredential(credentialId) {
   return ledger.credentials[credentialId] || null;
 }
 
-module.exports = { setNodeId, recordIssuedCredential, recordRevokedCredential, getCredential, loadLedger };
+function getAllCredentials() {
+  const ledger = loadLedger();
+  return ledger.credentials;
+}
+
+module.exports = { setNodeId, recordIssuedCredential, recordRevokedCredential, getCredential, getAllCredentials, loadLedger };

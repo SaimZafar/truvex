@@ -37,7 +37,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full flex bg-gray-950">
-      {/* Left panel — branding, animated background */}
+      {/* Left panel - branding, animated background */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-gray-950">
           <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] animate-[drift1_18s_ease-in-out_infinite]" />
@@ -59,7 +59,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right panel — the actual form */}
+      {/* Right panel - the actual form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-8 text-center">
