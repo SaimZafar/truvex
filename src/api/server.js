@@ -1,4 +1,6 @@
 const express = require('express');
+const { getCurrentLeader } = require('../consensus/state');
+const { VALIDATORS } = require('../network/validator-registry');
 
 function startApiServer(apiPort, myNodeId, getNextBlockNumber, isLeaderFn, proposeBlockFn, getCredentialFn, getAllCredentialsFn) {
   const app = express();
@@ -40,6 +42,11 @@ const payload = {
   });
   app.get('/credentials', (req, res) => {
     res.json({ credentials: getAllCredentialsFn() });
+  });
+  app.get('/leader', (req, res) => {
+    const leaderId = getCurrentLeader();
+    const leaderIndex = VALIDATORS.findIndex(v => v.id === leaderId) + 1;
+    res.json({ leaderId, leaderIndex });
   });
   app.post('/revoke-credential', (req, res) => {
     if (!isLeaderFn(myNodeId)) {

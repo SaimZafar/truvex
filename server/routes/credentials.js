@@ -5,6 +5,12 @@ const router = express.Router();
 
 const BLOCKCHAIN_BASE = process.env.BLOCKCHAIN_API_BASE;
 
+async function getLeaderBase() {
+  const res = await fetch(`${BLOCKCHAIN_BASE}1/leader`);
+  const data = await res.json();
+  return `${BLOCKCHAIN_BASE}${data.leaderIndex}`;
+}
+
 async function fetchBlockchain(path, method = 'GET', body = null) {
   const options = {
     method,
@@ -27,7 +33,8 @@ router.post('/issue', authMiddleware, requireRole('hec', 'university'), async (r
       issuingInstitution = req.user.institution;
     }
 
-    const response = await fetch(`${BLOCKCHAIN_BASE}1/issue-credential`, {
+    const base = await getLeaderBase();
+    const response = await fetch(`${base}/issue-credential`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentName, degree, cgpa, credentialId, issuingInstitution })
@@ -64,7 +71,8 @@ router.post('/revoke', authMiddleware, requireRole('hec'), async (req, res) => {
   try {
     const { credentialId, reason } = req.body;
 
-    const response = await fetch(`${BLOCKCHAIN_BASE}1/revoke-credential`, {
+    const base = await getLeaderBase();
+    const response = await fetch(`${base}/revoke-credential`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credentialId, reason })
